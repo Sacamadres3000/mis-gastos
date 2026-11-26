@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Configurando Mis gastos</title>
+<style>body{font:18px/1.5 system-ui,sans-serif;margin:0;padding:32px 20px;color:#10131a;background:#fff}b{color:#0b4f8a}</style></head>
+<body><p id="m">Configurando el respaldo en Google Sheets...</p>
+<script>
+{
+const KEY='mis-gastos-v1',el=document.getElementById('m');
+(async()=>{
+  try{
+    const p=JSON.parse(decodeURIComponent(escape(atob(location.hash.replace(/^#setup-/,'')))));
+    if(!/^https:\/\/script\.google\.com\//.test(p.url)||!p.tok)throw new Error('enlace incompleto');
+    history.replaceState(null,'',location.pathname);
+    let s={};try{s=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){}
+    s.bk={url:p.url,tok:p.tok};
+    if(!Array.isArray(s.items))s.items=[];
+    if(!Array.isArray(s.pend))s.pend=[];
+    const r=await fetch(p.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:p.tok,action:'pull'})});
+    const j=await r.json();if(!j.ok)throw new Error(j.error||'sin respuesta');
+    for(const it of j.items||[]){
+      if(!it||!it.id||typeof it.v!=='number'||!/^\d{4}-\d{2}-\d{2}$/.test(it.d))continue;
+      const l=s.items.find(x=>x.id===it.id);
+      if(!l)s.items.push(it);else if((it.u||0)>(l.u||0)&&!s.pend.includes(l.id))Object.assign(l,it);
+    }
+    if(j.cfg&&Array.isArray(j.cfg.cats)&&!s.cfgPend&&(!s.cfg||(j.cfg.u||0)>=(s.cfg.u||0)))s.cfg=j.cfg;
+    s.last=Date.now();
+    localStorage.setItem(KEY,JSON.stringify(s));
+    el.innerHTML='<b>Listo.</b> Respaldo configurado. Abriendo la app...';
+    setTimeout(()=>location.replace('./'),1200);
+  }catch(e){el.textContent='No se pudo configurar: '+e.message+'. Revisa tu conexión a internet y vuelve a abrir el enlace.'}
+})();
+}
+</script></body></html>
